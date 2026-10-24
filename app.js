@@ -10,8 +10,9 @@ if (tg) {
 }
 
 const STORE_KEY = "campusmatch:v1";
-const SCHOOLS = ["Engineering", "Sciences & Humanities", "Medicine", "Mining & Geosciences",
-  "Business", "Education", "Public Policy", "Foundation"];
+// NU schools (nu.edu.kz/academics/schools), minus the public policy and education graduate schools.
+const SCHOOLS = ["Engineering (SOE)", "Computing & AI (SCAI)", "Sciences & Humanities (SSH)",
+  "Medicine (NUSOM)", "Business (GSB)", "Foundation (CPS)"];
 const YEARS = ["Foundation", "1st year", "2nd year", "3rd year", "4th year", "Master's", "PhD"];
 const INTERESTS = ["Coffee", "Hiking", "Gaming", "Music", "Movies", "Anime", "Books", "Sport",
   "Gym", "Coding", "Art", "Photography", "Travel", "Cooking", "Dancing", "Chess", "Startups",
