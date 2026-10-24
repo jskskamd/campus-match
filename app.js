@@ -26,6 +26,7 @@ const INTERESTS = ["Coffee", "Hiking", "Gaming", "Music", "Movies", "Anime", "Bo
 const MAX_INTERESTS = 5;
 const MIN_AGE = 18;
 const MAX_AGE = 35;
+const PHOTO_MAX_SIDE = 720; // px; keeps a photo around 100 KB so it fits in browser storage
 const GRADIENTS = [
   ["#ff9a9e", "#fecfef"], ["#f6d365", "#fda085"], ["#84fab0", "#8fd3f4"], ["#a18cd1", "#fbc2eb"],
   ["#fccb90", "#d57eeb"], ["#e0c3fc", "#8ec5fc"], ["#43e97b", "#38f9d7"], ["#fa709a", "#fee140"],
@@ -40,12 +41,9 @@ const ACCENTS = {
   sky: ["#4a9de0", "#e5f1fb"],
   peach: ["#f29a3f", "#fdf0e2"],
 };
-const AVATAR_EMOJIS = ["🙂", "😎", "🌸", "🦊", "🐱", "🐼", "🌙", "⭐", "🎧", "📚", "🏀", "🎨"];
 const DEFAULT_SETTINGS = {
   accent: "rose",
   textSize: "normal",
-  emoji: "🙂",
-  gradient: 0,
   ageMin: MIN_AGE,
   ageMax: MAX_AGE,
   sameSchool: false,
@@ -79,8 +77,14 @@ function loadState() {
 
 let state = loadState();
 
+// Returns false if the browser refused to store the data (usually a full storage quota).
 function save() {
-  try { localStorage.setItem(STORE_KEY, JSON.stringify(state)); } catch (e) {}
+  try {
+    localStorage.setItem(STORE_KEY, JSON.stringify(state));
+    return true;
+  } catch (e) {
+    return false;
+  }
 }
 
 function haptic(kind) {
@@ -91,13 +95,24 @@ function haptic(kind) {
   } catch (e) {}
 }
 
-function avatarBg(p) {
-  const [a, b] = GRADIENTS[p.gradient % GRADIENTS.length];
+function gradientBg(p) {
+  const [a, b] = GRADIENTS[(p.gradient || 0) % GRADIENTS.length];
   return `background: linear-gradient(135deg, ${a}, ${b})`;
 }
 
+function initial(p) {
+  return (p.name || "?").trim().charAt(0).toUpperCase();
+}
+
+// Round picture: the person's photo, or their initial on a soft colour.
+function avatarHTML(p, cls = "") {
+  return p.photo
+    ? `<span class="avatar ${cls}"><img src="${esc(p.photo)}" alt=""></span>`
+    : `<span class="avatar ${cls}" style="${gradientBg(p)}">${esc(initial(p))}</span>`;
+}
+
 function me() {
-  return { ...state.profile, emoji: state.settings.emoji, gradient: state.settings.gradient };
+  return { ...state.profile, gradient: 0 };
 }
 
 function applyAppearance() {
@@ -112,9 +127,12 @@ function applyAppearance() {
 function makeCard(p) {
   const card = document.createElement("article");
   card.className = "card";
+  const picture = p.photo
+    ? `<img class="card-img" src="${esc(p.photo)}" alt="" draggable="false">`
+    : `<span class="card-initial">${esc(initial(p))}</span>`;
   card.innerHTML = `
-    <div class="card-photo" style="${avatarBg(p)}">
-      <span class="card-emoji">${p.emoji}</span>
+    <div class="card-photo" style="${gradientBg(p)}">
+      ${picture}
       <span class="stamp like">LIKE</span>
       <span class="stamp nope">NOPE</span>
     </div>
@@ -149,7 +167,6 @@ function renderDeck() {
       state.settings.ageMin > MIN_AGE || state.settings.ageMax < MAX_AGE;
     deck.innerHTML = `
       <div class="empty">
-        <div class="empty-emoji">🎉</div>
         <h3>You've seen everyone</h3>
         <p class="hint">${filtered
           ? "Try widening your age range or school filter in Settings."
@@ -240,12 +257,8 @@ function swipe(p, dir, card) {
 let lastMatch = null;
 
 function showMatch(p) {
-  const m = me();
   lastMatch = p;
-  $("#match-me").style.cssText = avatarBg(m);
-  $("#match-me").textContent = m.emoji;
-  $("#match-them").style.cssText = avatarBg(p);
-  $("#match-them").textContent = p.emoji;
+  $("#match-avatars").innerHTML = avatarHTML(me(), "big") + avatarHTML(p, "big");
   $("#match-text").textContent = `You and ${p.name} liked each other.`;
   $("#match-modal").hidden = false;
   haptic("match");
@@ -265,12 +278,12 @@ function renderMatches() {
   list.innerHTML = matches.map((p) => `
     <li>
       <button class="match-row" data-id="${p.id}">
-        <span class="avatar" style="${avatarBg(p)}">${p.emoji}</span>
+        ${avatarHTML(p)}
         <span class="match-info">
           <strong>${esc(p.name)}, ${p.age}</strong>
           <small>${p.username ? `@${esc(p.username)}` : `${esc(p.school)} · ${esc(p.year)}`}</small>
         </span>
-        <span class="say-hi">💬</span>
+        <span class="say-hi"><svg class="icon"><use href="#i-chat"/></svg></span>
       </button>
     </li>`).join("");
 }
@@ -284,11 +297,11 @@ function openMatch(p) {
   const hint = $("#message-hint");
   if (p.username) {
     btn.disabled = false;
-    btn.textContent = `💬 Message @${p.username}`;
+    btn.textContent = `Message @${p.username}`;
     hint.textContent = "Opens a private chat with them in Telegram.";
   } else {
     btn.disabled = true;
-    btn.textContent = "💬 Message on Telegram";
+    btn.textContent = "Message on Telegram";
     hint.textContent = "This is a sample profile, so there's no one to message. " +
       "With real students, this opens a Telegram chat with them.";
   }
@@ -318,11 +331,11 @@ function renderMyProfile() {
   const status = $("#contact-status");
   const { username } = state.profile;
   if (!state.settings.shareTelegram) {
-    status.textContent = "🔒 Matches can't message you. Turn this on in Settings.";
+    status.textContent = "Matches can't message you. You can turn this on in Settings.";
   } else if (username) {
-    status.textContent = `💬 Matches can message you at @${username}`;
+    status.textContent = `Matches can message you at @${username}`;
   } else {
-    status.textContent = "⚠️ Add your Telegram username in Settings so matches can message you.";
+    status.textContent = "Add your Telegram username in Settings so matches can message you.";
   }
 }
 
@@ -339,15 +352,6 @@ function renderSettings() {
 
   document.querySelectorAll("#text-size button").forEach((b) =>
     b.classList.toggle("on", b.dataset.size === s.textSize));
-
-  const preview = $("#avatar-preview");
-  preview.style.cssText = avatarBg(me());
-  preview.textContent = s.emoji;
-  $("#emoji-grid").innerHTML = AVATAR_EMOJIS.map((e) =>
-    `<button class="emoji-option${s.emoji === e ? " on" : ""}" data-emoji="${e}">${e}</button>`).join("");
-  $("#avatar-swatches").innerHTML = GRADIENTS.slice(0, 8).map((_, i) =>
-    `<button class="swatch${s.gradient === i ? " on" : ""}" data-gradient="${i}"
-       style="${avatarBg({ gradient: i })}" aria-label="Colour ${i + 1}"></button>`).join("");
 
   $("#set-showme").value = state.profile.showMe;
   $("#set-agemin").value = s.ageMin;
@@ -398,14 +402,6 @@ function setupSettings() {
   $("#text-size").addEventListener("click", (e) => {
     const b = e.target.closest("[data-size]");
     if (b) { state.settings.textSize = b.dataset.size; settingsChanged(); }
-  });
-  $("#emoji-grid").addEventListener("click", (e) => {
-    const b = e.target.closest("[data-emoji]");
-    if (b) { state.settings.emoji = b.dataset.emoji; settingsChanged(); }
-  });
-  $("#avatar-swatches").addEventListener("click", (e) => {
-    const b = e.target.closest("[data-gradient]");
-    if (b) { state.settings.gradient = Number(b.dataset.gradient); settingsChanged(); }
   });
   $("#set-showme").addEventListener("change", (e) => {
     state.profile.showMe = e.target.value;
@@ -465,6 +461,66 @@ $("#btn-reset").addEventListener("click", (e) => {
   showOnboarding();
 });
 
+// ---------- Photo upload ----------
+
+let pendingPhoto = null; // data URL of the photo chosen in the form, not yet saved
+
+// Shrinks the chosen image and re-encodes it as JPEG so it fits in browser storage.
+function readPhoto(file) {
+  return new Promise((resolve, reject) => {
+    const url = URL.createObjectURL(file);
+    const img = new Image();
+    img.onload = () => {
+      const scale = Math.min(1, PHOTO_MAX_SIDE / Math.max(img.width, img.height));
+      const canvas = document.createElement("canvas");
+      canvas.width = Math.round(img.width * scale);
+      canvas.height = Math.round(img.height * scale);
+      canvas.getContext("2d").drawImage(img, 0, 0, canvas.width, canvas.height);
+      URL.revokeObjectURL(url);
+      resolve(canvas.toDataURL("image/jpeg", 0.82));
+    };
+    img.onerror = () => {
+      URL.revokeObjectURL(url);
+      reject(new Error("Could not read image"));
+    };
+    img.src = url;
+  });
+}
+
+function renderPhotoPicker() {
+  const preview = $("#photo-preview");
+  preview.hidden = !pendingPhoto;
+  if (pendingPhoto) preview.src = pendingPhoto;
+  else preview.removeAttribute("src");
+  $("#photo-empty").hidden = !!pendingPhoto;
+  $("#photo-change").hidden = !pendingPhoto;
+  $("#photo-remove").hidden = !pendingPhoto;
+}
+
+$("#photo-input").addEventListener("change", async (e) => {
+  const file = e.target.files && e.target.files[0];
+  e.target.value = ""; // lets the same file be picked again
+  if (!file) return;
+  if (!file.type.startsWith("image/")) {
+    $("#form-error").textContent = "Please choose an image file.";
+    return;
+  }
+  try {
+    pendingPhoto = await readPhoto(file);
+    $("#form-error").textContent = "";
+    haptic("light");
+  } catch (err) {
+    $("#form-error").textContent = "That photo couldn't be opened. Try a different one.";
+  }
+  renderPhotoPicker();
+});
+
+$("#photo-change").addEventListener("click", () => $("#photo-input").click());
+$("#photo-remove").addEventListener("click", () => {
+  pendingPhoto = null;
+  renderPhotoPicker();
+});
+
 // ---------- Sign-up form ----------
 
 let pickedInterests = new Set();
@@ -509,11 +565,13 @@ function fillForm() {
   el.bio.value = p.bio || "";
   el.adult.checked = el.ack.checked = !!state.profile;
   pickedInterests = new Set(p.interests || []);
+  pendingPhoto = p.photo || null;
   renderInterestPicker();
+  renderPhotoPicker();
   $("#form-error").textContent = "";
 
   const editing = !!state.profile;
-  $("#form-title").textContent = editing ? "Edit profile" : "💘 Campus Match";
+  $("#form-title").textContent = editing ? "Edit profile" : "Campus Match";
   $("#form-subtitle").textContent = editing
     ? "Update how other students see you."
     : "Meet other students. Create your profile to start.";
@@ -535,6 +593,7 @@ $("#profile-form").addEventListener("submit", (e) => {
     year: el.year.value,
     bio: el.bio.value.trim(),
     interests: [...pickedInterests],
+    photo: pendingPhoto,
     // Keep a username set in Settings; on first sign-up, take it from Telegram.
     username: state.profile ? state.profile.username : ((tgUser && tgUser.username) || ""),
   };
@@ -546,11 +605,14 @@ $("#profile-form").addEventListener("submit", (e) => {
   if (profile.age < MIN_AGE || !el.adult.checked) return error("Campus Match is for students 18 and older.");
   if (!el.ack.checked) return error("Please confirm you understand this is a prototype.");
 
-  const firstTime = !state.profile;
+  const previous = state.profile;
   state.profile = profile;
-  save();
+  if (!save()) {
+    state.profile = previous;
+    return error("Your phone couldn't store this photo. Try a different one.");
+  }
   showApp();
-  if (firstTime) switchTab("discover");
+  if (!previous) switchTab("discover");
 });
 
 $("#form-cancel").addEventListener("click", showApp);
