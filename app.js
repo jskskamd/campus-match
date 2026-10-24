@@ -135,6 +135,10 @@ function applyAppearance() {
   root.style.setProperty("--accent-soft", theme === "dark" ? softDark : softLight);
   document.body.classList.toggle("large-text", state.settings.textSize === "large");
 
+  // Sign-up theme button: sun on light, moon on dark.
+  $("#theme-toggle use").setAttribute("href", theme === "dark" ? "#i-moon" : "#i-sun");
+  $("#theme-toggle").setAttribute("aria-label", `Switch to ${theme === "dark" ? "light" : "dark"} theme`);
+
   // Match Telegram's own header and background to the app.
   if (!tg) return;
   const colors = THEME_COLORS[theme];
@@ -146,6 +150,17 @@ function applyAppearance() {
     if (tg.isVersionAtLeast("7.10")) tg.setBottomBarColor(colors.surface);
   } catch (e) {}
 }
+
+$("#theme-toggle").addEventListener("click", (e) => {
+  const btn = e.currentTarget;
+  state.settings.theme = resolvedTheme() === "dark" ? "light" : "dark";
+  save();
+  applyAppearance();
+  btn.classList.remove("spin");
+  void btn.offsetWidth; // restart the spin animation
+  btn.classList.add("spin");
+  haptic("light");
+});
 
 // "Auto" follows Telegram's theme (or the device's, outside Telegram).
 if (tg) tg.onEvent("themeChanged", () => { if (state.settings.theme === "system") applyAppearance(); });

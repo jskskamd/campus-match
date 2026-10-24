@@ -6,7 +6,7 @@
   <title>Campus Match</title>
   <script src="https://telegram.org/js/telegram-web-app.js"></script>
   <!-- Bump ?v= on every release so Telegram doesn't keep serving old files. -->
-  <link rel="stylesheet" href="style.css?v=5">
+  <link rel="stylesheet" href="style.css?v=6">
 </head>
 <body>
 
@@ -22,6 +22,8 @@
       <symbol id="i-camera" viewBox="0 0 24 24"><path d="M4 8.5h3l1.8-2.5h6.4L17 8.5h3V19H4z"/><circle cx="12" cy="13.5" r="3.3"/></symbol>
       <symbol id="i-back" viewBox="0 0 24 24"><path d="M15 5l-7 7 7 7"/></symbol>
       <symbol id="i-check" viewBox="0 0 24 24"><path d="M5 12.5l4.5 4.5L19 7.5"/></symbol>
+      <symbol id="i-sun" viewBox="0 0 24 24"><circle cx="12" cy="12" r="4"/><path d="M12 2.5v2M12 19.5v2M4.6 4.6l1.4 1.4M18 18l1.4 1.4M2.5 12h2M19.5 12h2M4.6 19.4L6 18M18 6l1.4-1.4"/></symbol>
+      <symbol id="i-moon" viewBox="0 0 24 24"><path d="M20 14.6A8.2 8.2 0 0 1 9.4 4a8.2 8.2 0 1 0 10.6 10.6z"/></symbol>
     </defs>
   </svg>
 
@@ -32,6 +34,7 @@
         <button type="button" class="icon-btn" id="wiz-back" aria-label="Back"><svg class="icon"><use href="#i-back"/></svg></button>
         <div class="progress"><div class="progress-fill" id="wiz-progress"></div></div>
         <span class="step-count" id="wiz-count"></span>
+        <button type="button" class="icon-btn theme-toggle" id="theme-toggle" aria-label="Switch to dark theme"><svg class="icon"><use href="#i-sun"/></svg></button>
       </header>
 
       <div class="wizard-body" id="wizard-body">
@@ -251,7 +254,7 @@
     </div>
   </div>
 
-  <script src="profiles.js?v=5"></script>
-  <script src="app.js?v=5"></script>
+  <script src="profiles.js?v=6"></script>
+  <script src="app.js?v=6"></script>
 </body>
 </html>
