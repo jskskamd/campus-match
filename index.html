@@ -1,0 +1,137 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <title>Campus Match</title>
+  <script src="https://telegram.org/js/telegram-web-app.js"></script>
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+
+  <!-- Sign-up / edit profile -->
+  <section id="onboarding" class="screen" hidden>
+    <div class="onboarding-inner">
+      <h1 id="form-title">💘 Campus Match</h1>
+      <p class="hint" id="form-subtitle">Meet other students. Create your profile to start.</p>
+      <p class="prototype-note">Prototype: every profile you'll see is made up, and your data stays on this device.</p>
+
+      <form id="profile-form" novalidate>
+        <label>Name
+          <input name="displayName" maxlength="30" autocomplete="given-name" required>
+        </label>
+
+        <div class="row">
+          <label>Age
+            <select name="age" required></select>
+          </label>
+          <label>I am
+            <select name="gender" required>
+              <option value="">Choose…</option>
+              <option value="woman">Woman</option>
+              <option value="man">Man</option>
+              <option value="nonbinary">Non-binary</option>
+            </select>
+          </label>
+        </div>
+
+        <label>Show me
+          <select name="showMe" required>
+            <option value="">Choose…</option>
+            <option value="women">Women</option>
+            <option value="men">Men</option>
+            <option value="everyone">Everyone</option>
+          </select>
+        </label>
+
+        <div class="row">
+          <label>School
+            <select name="school" required></select>
+          </label>
+          <label>Year
+            <select name="year" required></select>
+          </label>
+        </div>
+
+        <label>About me
+          <textarea name="bio" maxlength="200" rows="3" placeholder="Coffee person, chess enjoyer, looking for a study buddy…"></textarea>
+        </label>
+
+        <fieldset>
+          <legend>Interests <span class="hint" id="interest-count"></span></legend>
+          <div class="chips selectable" id="interest-picker"></div>
+        </fieldset>
+
+        <label class="check"><input type="checkbox" name="adult"> I'm 18 or older</label>
+        <label class="check"><input type="checkbox" name="ack"> I understand this is a prototype with sample profiles</label>
+
+        <p class="form-error" id="form-error" role="alert"></p>
+        <button type="submit" class="primary" id="form-submit">Start matching</button>
+        <button type="button" class="ghost" id="form-cancel" hidden>Cancel</button>
+      </form>
+    </div>
+  </section>
+
+  <!-- Main app -->
+  <section id="app" class="screen" hidden>
+    <header class="topbar">
+      <span class="logo">💘 Campus Match</span>
+      <span class="pill">Prototype</span>
+    </header>
+
+    <main>
+      <div class="panel" data-panel="discover">
+        <div class="deck" id="deck"></div>
+        <div class="actions" id="deck-actions">
+          <button class="round pass" id="btn-pass" aria-label="Pass">✕</button>
+          <button class="round like" id="btn-like" aria-label="Like">♥</button>
+        </div>
+      </div>
+
+      <div class="panel" data-panel="matches" hidden>
+        <h2>Matches</h2>
+        <ul class="match-list" id="match-list"></ul>
+      </div>
+
+      <div class="panel" data-panel="profile" hidden>
+        <h2>My profile</h2>
+        <div class="my-card" id="my-card"></div>
+        <button class="primary" id="btn-edit">Edit profile</button>
+        <button class="ghost danger" id="btn-reset">Reset prototype data</button>
+      </div>
+    </main>
+
+    <nav class="tabs">
+      <button data-tab="discover" aria-current="page"><span>🔥</span>Discover</button>
+      <button data-tab="matches"><span>💬</span>Matches <b class="badge" id="match-badge" hidden></b></button>
+      <button data-tab="profile"><span>👤</span>Profile</button>
+    </nav>
+  </section>
+
+  <!-- "It's a match" popup -->
+  <div class="modal" id="match-modal" hidden>
+    <div class="modal-box">
+      <div class="match-avatars">
+        <span class="avatar big" id="match-me"></span>
+        <span class="avatar big" id="match-them"></span>
+      </div>
+      <h2>It's a match!</h2>
+      <p class="hint" id="match-text"></p>
+      <button class="primary" id="match-chat">See matches</button>
+      <button class="ghost" id="match-continue">Keep swiping</button>
+    </div>
+  </div>
+
+  <!-- Matched profile details -->
+  <div class="modal" id="profile-modal" hidden>
+    <div class="modal-box sheet">
+      <div id="profile-modal-card"></div>
+      <p class="hint">In the real app, this button would open a Telegram chat with them.</p>
+      <button class="ghost" id="profile-modal-close">Close</button>
+    </div>
+  </div>
+
+  <script src="profiles.js"></script>
+  <script src="app.js"></script>
+</body>
+</html>
