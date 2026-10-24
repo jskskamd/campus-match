@@ -3,11 +3,10 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-  <meta name="color-scheme" content="light">
   <title>Campus Match</title>
   <script src="https://telegram.org/js/telegram-web-app.js"></script>
   <!-- Bump ?v= on every release so Telegram doesn't keep serving old files. -->
-  <link rel="stylesheet" href="style.css?v=4">
+  <link rel="stylesheet" href="style.css?v=5">
 </head>
 <body>
 
@@ -21,85 +20,103 @@
       <symbol id="i-x" viewBox="0 0 24 24"><path d="M6 6l12 12M18 6L6 18"/></symbol>
       <symbol id="i-heart" viewBox="0 0 24 24"><path d="M12 20s-7.5-4.6-7.5-10.2A4.3 4.3 0 0 1 12 7a4.3 4.3 0 0 1 7.5 2.8C19.5 15.4 12 20 12 20z"/></symbol>
       <symbol id="i-camera" viewBox="0 0 24 24"><path d="M4 8.5h3l1.8-2.5h6.4L17 8.5h3V19H4z"/><circle cx="12" cy="13.5" r="3.3"/></symbol>
+      <symbol id="i-back" viewBox="0 0 24 24"><path d="M15 5l-7 7 7 7"/></symbol>
+      <symbol id="i-check" viewBox="0 0 24 24"><path d="M5 12.5l4.5 4.5L19 7.5"/></symbol>
     </defs>
   </svg>
 
-  <!-- Sign-up / edit profile -->
+  <!-- Sign-up wizard (one question per screen); edit mode shows every question at once -->
   <section id="onboarding" class="screen" hidden>
-    <div class="onboarding-inner">
-      <h1 id="form-title">Campus Match</h1>
-      <p class="hint" id="form-subtitle">Meet other students. Create your profile to start.</p>
-      <p class="prototype-note">Prototype: every other profile is made up, and your data and photo stay on this device.</p>
+    <div class="wizard">
+      <header class="wizard-top">
+        <button type="button" class="icon-btn" id="wiz-back" aria-label="Back"><svg class="icon"><use href="#i-back"/></svg></button>
+        <div class="progress"><div class="progress-fill" id="wiz-progress"></div></div>
+        <span class="step-count" id="wiz-count"></span>
+      </header>
 
-      <form id="profile-form" novalidate>
-        <div class="photo-picker">
-          <label class="photo-frame" for="photo-input">
-            <img id="photo-preview" alt="Your photo" hidden>
-            <span class="photo-empty" id="photo-empty">
-              <svg class="icon"><use href="#i-camera"/></svg>
-              Add a photo
-            </span>
-          </label>
-          <input type="file" accept="image/*" id="photo-input" class="visually-hidden">
-          <div class="photo-side">
-            <p class="hint small">Use a clear photo of yourself. Profiles with a photo get more matches.</p>
-            <button type="button" class="link" id="photo-change" hidden>Change photo</button>
-            <button type="button" class="link danger" id="photo-remove" hidden>Remove</button>
-          </div>
-        </div>
+      <div class="wizard-body" id="wizard-body">
+        <h1 class="edit-title">Edit profile</h1>
 
-        <label>Name
-          <input name="displayName" maxlength="30" autocomplete="given-name" required>
-        </label>
+        <form id="profile-form" novalidate>
+          <section class="step" data-step="name">
+            <p class="brand">Campus Match</p>
+            <h2>What's your first name?</h2>
+            <p class="hint">This is how other students will see you.</p>
+            <input id="f-name" class="big-input" maxlength="30" autocomplete="given-name" placeholder="Your name" enterkeyhint="next">
+          </section>
 
-        <div class="row">
-          <label>Age
-            <select name="age" required></select>
-          </label>
-          <label>I am
-            <select name="gender" required>
-              <option value="">Choose…</option>
-              <option value="woman">Woman</option>
-              <option value="man">Man</option>
-              <option value="nonbinary">Non-binary</option>
-            </select>
-          </label>
-        </div>
+          <section class="step" data-step="age">
+            <h2>How old are you?</h2>
+            <p class="hint">Campus Match is for students 18 and older.</p>
+            <select id="f-age" class="big-input"></select>
+            <label class="check"><input type="checkbox" id="f-adult"> I confirm I'm 18 or older</label>
+          </section>
 
-        <label>Show me
-          <select name="showMe" required>
-            <option value="">Choose…</option>
-            <option value="women">Women</option>
-            <option value="men">Men</option>
-            <option value="everyone">Everyone</option>
-          </select>
-        </label>
+          <section class="step" data-step="gender">
+            <h2>I am a…</h2>
+            <div class="options" data-field="gender"></div>
+          </section>
 
-        <div class="row">
-          <label>School
-            <select name="school" required></select>
-          </label>
-          <label>Year
-            <select name="year" required></select>
-          </label>
-        </div>
+          <section class="step" data-step="showMe">
+            <h2>Who would you like to meet?</h2>
+            <div class="options" data-field="showMe"></div>
+          </section>
 
-        <label>About me
-          <textarea name="bio" maxlength="200" rows="3" placeholder="Coffee person, chess enjoyer, looking for a study buddy…"></textarea>
-        </label>
+          <section class="step" data-step="school">
+            <h2>Which school are you in?</h2>
+            <div class="options" data-field="school"></div>
+          </section>
 
-        <fieldset>
-          <legend>Interests <span class="hint" id="interest-count"></span></legend>
-          <div class="chips selectable" id="interest-picker"></div>
-        </fieldset>
+          <section class="step" data-step="year">
+            <h2>What year are you in?</h2>
+            <div class="options" data-field="year"></div>
+          </section>
 
-        <label class="check"><input type="checkbox" name="adult"> I'm 18 or older</label>
-        <label class="check"><input type="checkbox" name="ack"> I understand this is a prototype with sample profiles</label>
+          <section class="step" data-step="photo">
+            <h2>Add your best photo</h2>
+            <p class="hint">A clear photo of you gets more matches. It stays on this device.</p>
+            <div class="photo-picker">
+              <label class="photo-frame" for="photo-input">
+                <img id="photo-preview" alt="Your photo" hidden>
+                <span class="photo-empty" id="photo-empty">
+                  <svg class="icon"><use href="#i-camera"/></svg>
+                  Add a photo
+                </span>
+              </label>
+              <input type="file" accept="image/*" id="photo-input" class="visually-hidden">
+              <div class="photo-actions">
+                <button type="button" class="link" id="photo-change" hidden>Change photo</button>
+                <button type="button" class="link danger" id="photo-remove" hidden>Remove</button>
+              </div>
+            </div>
+          </section>
 
+          <section class="step" data-step="bio">
+            <h2>Tell people about yourself</h2>
+            <p class="hint">A line or two is plenty.</p>
+            <textarea id="f-bio" class="big-input" maxlength="200" rows="4" placeholder="Coffee person, chess enjoyer, looking for a study buddy…"></textarea>
+            <p class="hint small counter" id="bio-count"></p>
+          </section>
+
+          <section class="step" data-step="interests">
+            <h2>What are you into?</h2>
+            <p class="hint">Pick up to 5. <span id="interest-count"></span></p>
+            <div class="chips selectable" id="interest-picker"></div>
+          </section>
+
+          <section class="step" data-step="ack">
+            <h2>Almost done</h2>
+            <p class="prototype-note">This is a prototype. Every other profile is made up, and your profile and photo stay on this device.</p>
+            <label class="check"><input type="checkbox" id="f-ack"> I understand this is a prototype with sample profiles</label>
+          </section>
+        </form>
+      </div>
+
+      <footer class="wizard-bottom">
         <p class="form-error" id="form-error" role="alert"></p>
-        <button type="submit" class="primary" id="form-submit">Start matching</button>
+        <button type="button" class="primary" id="wiz-next">Continue</button>
         <button type="button" class="ghost" id="form-cancel" hidden>Cancel</button>
-      </form>
+      </footer>
     </div>
   </section>
 
@@ -136,6 +153,14 @@
 
         <section class="group">
           <h4>Appearance</h4>
+          <div class="setting">
+            <span>Theme</span>
+            <div class="segmented" id="theme-choice">
+              <button data-theme-choice="light">Light</button>
+              <button data-theme-choice="dark">Dark</button>
+              <button data-theme-choice="system">Auto</button>
+            </div>
+          </div>
           <div class="setting">
             <span>Accent colour</span>
             <div class="swatches" id="accent-swatches"></div>
@@ -226,7 +251,7 @@
     </div>
   </div>
 
-  <script src="profiles.js?v=4"></script>
-  <script src="app.js?v=4"></script>
+  <script src="profiles.js?v=5"></script>
+  <script src="app.js?v=5"></script>
 </body>
 </html>

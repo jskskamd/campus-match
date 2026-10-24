@@ -1,16 +1,9 @@
 const tg = window.Telegram ? window.Telegram.WebApp : null;
-const PAGE_BG = "#fff8fa";
 
 if (tg) {
   tg.ready();
   tg.expand();
   try {
-    // Match Telegram's own header and background to the app's light design.
-    if (tg.isVersionAtLeast("6.1")) {
-      tg.setHeaderColor(PAGE_BG);
-      tg.setBackgroundColor(PAGE_BG);
-    }
-    if (tg.isVersionAtLeast("7.10")) tg.setBottomBarColor("#ffffff");
     // Stop a downward card drag from closing the Mini App on mobile.
     if (tg.isVersionAtLeast("7.7")) tg.disableVerticalSwipes();
   } catch (e) {}
@@ -32,16 +25,22 @@ const GRADIENTS = [
   ["#fccb90", "#d57eeb"], ["#e0c3fc", "#8ec5fc"], ["#43e97b", "#38f9d7"], ["#fa709a", "#fee140"],
   ["#a1c4fd", "#c2e9fb"], ["#fbc2eb", "#a6c1ee"], ["#d4fc79", "#96e6a1"], ["#ff758c", "#ff7eb3"],
 ];
-// [main colour, soft tint]
+// [main colour, soft tint on light theme, soft tint on dark theme]
 const ACCENTS = {
-  rose: ["#f06b8b", "#fde8ee"],
-  coral: ["#ff7f61", "#ffece6"],
-  lavender: ["#9b7ede", "#efe9fb"],
-  mint: ["#2fb38c", "#e2f6ef"],
-  sky: ["#4a9de0", "#e5f1fb"],
-  peach: ["#f29a3f", "#fdf0e2"],
+  rose: ["#f06b8b", "#fde8ee", "#41242f"],
+  coral: ["#ff7f61", "#ffece6", "#432a21"],
+  lavender: ["#9b7ede", "#efe9fb", "#2f2742"],
+  mint: ["#2fb38c", "#e2f6ef", "#1b352e"],
+  sky: ["#4a9de0", "#e5f1fb", "#1d2f41"],
+  peach: ["#f29a3f", "#fdf0e2", "#3e2d1b"],
+};
+// Page and bar colours per theme; must match --bg and --surface in style.css.
+const THEME_COLORS = {
+  light: { bg: "#fff8fa", surface: "#ffffff" },
+  dark: { bg: "#151218", surface: "#211c25" },
 };
 const DEFAULT_SETTINGS = {
+  theme: "light",
   accent: "rose",
   textSize: "normal",
   ageMin: MIN_AGE,
@@ -91,6 +90,7 @@ function haptic(kind) {
   try {
     if (!state.settings.haptics || !tg || !tg.HapticFeedback) return;
     if (kind === "match") tg.HapticFeedback.notificationOccurred("success");
+    else if (kind === "select") tg.HapticFeedback.selectionChanged();
     else tg.HapticFeedback.impactOccurred(kind);
   } catch (e) {}
 }
@@ -115,11 +115,42 @@ function me() {
   return { ...state.profile, gradient: 0 };
 }
 
+// ---------- Theme & appearance ----------
+
+const systemDark = window.matchMedia ? window.matchMedia("(prefers-color-scheme: dark)") : null;
+
+function resolvedTheme() {
+  const choice = state.settings.theme;
+  if (choice === "light" || choice === "dark") return choice;
+  if (tg && tg.colorScheme) return tg.colorScheme;
+  return systemDark && systemDark.matches ? "dark" : "light";
+}
+
 function applyAppearance() {
-  const [main, soft] = ACCENTS[state.settings.accent] || ACCENTS.rose;
-  document.documentElement.style.setProperty("--accent", main);
-  document.documentElement.style.setProperty("--accent-soft", soft);
+  const theme = resolvedTheme();
+  const root = document.documentElement;
+  root.dataset.theme = theme;
+  const [main, softLight, softDark] = ACCENTS[state.settings.accent] || ACCENTS.rose;
+  root.style.setProperty("--accent", main);
+  root.style.setProperty("--accent-soft", theme === "dark" ? softDark : softLight);
   document.body.classList.toggle("large-text", state.settings.textSize === "large");
+
+  // Match Telegram's own header and background to the app.
+  if (!tg) return;
+  const colors = THEME_COLORS[theme];
+  try {
+    if (tg.isVersionAtLeast("6.1")) {
+      tg.setHeaderColor(colors.bg);
+      tg.setBackgroundColor(colors.bg);
+    }
+    if (tg.isVersionAtLeast("7.10")) tg.setBottomBarColor(colors.surface);
+  } catch (e) {}
+}
+
+// "Auto" follows Telegram's theme (or the device's, outside Telegram).
+if (tg) tg.onEvent("themeChanged", () => { if (state.settings.theme === "system") applyAppearance(); });
+if (systemDark && systemDark.addEventListener) {
+  systemDark.addEventListener("change", () => { if (state.settings.theme === "system") applyAppearance(); });
 }
 
 // ---------- Cards ----------
@@ -346,10 +377,11 @@ $("#btn-edit").addEventListener("click", showOnboarding);
 function renderSettings() {
   const s = state.settings;
 
+  document.querySelectorAll("#theme-choice button").forEach((b) =>
+    b.classList.toggle("on", b.dataset.themeChoice === s.theme));
   $("#accent-swatches").innerHTML = Object.entries(ACCENTS).map(([name, [main]]) =>
     `<button class="swatch${s.accent === name ? " on" : ""}" data-accent="${name}"
        style="background:${main}" aria-label="${name}"></button>`).join("");
-
   document.querySelectorAll("#text-size button").forEach((b) =>
     b.classList.toggle("on", b.dataset.size === s.textSize));
 
@@ -387,7 +419,7 @@ function settingsChanged() {
   renderSettings();
   renderDeck();
   renderMyProfile();
-  haptic("light");
+  haptic("select");
 }
 
 function setupSettings() {
@@ -395,6 +427,10 @@ function setupSettings() {
   $("#set-agemin").innerHTML = ages;
   $("#set-agemax").innerHTML = ages;
 
+  $("#theme-choice").addEventListener("click", (e) => {
+    const b = e.target.closest("[data-theme-choice]");
+    if (b) { state.settings.theme = b.dataset.themeChoice; settingsChanged(); }
+  });
   $("#accent-swatches").addEventListener("click", (e) => {
     const b = e.target.closest("[data-accent]");
     if (b) { state.settings.accent = b.dataset.accent; settingsChanged(); }
@@ -461,9 +497,232 @@ $("#btn-reset").addEventListener("click", (e) => {
   showOnboarding();
 });
 
-// ---------- Photo upload ----------
+// ---------- Sign-up wizard ----------
 
-let pendingPhoto = null; // data URL of the photo chosen in the form, not yet saved
+const STEPS = ["name", "age", "gender", "showMe", "school", "year", "photo", "bio", "interests", "ack"];
+const CHOICES = {
+  gender: [["woman", "Woman"], ["man", "Man"], ["nonbinary", "Non-binary"]],
+  showMe: [["women", "Women"], ["men", "Men"], ["everyone", "Everyone"]],
+  school: SCHOOLS.map((s) => [s, s]),
+  year: YEARS.map((y) => [y, y]),
+};
+const OPTIONAL_STEPS = { photo: "photo", bio: "bio", interests: "interests" };
+
+let draft = null;    // profile being created or edited
+let stepIndex = 0;
+let editing = false; // true: every question on one page; false: one question per screen
+let advanceTimer = null;
+
+function newDraft() {
+  const p = state.profile;
+  if (p) return { ...p, interests: [...(p.interests || [])], adult: true, ack: true };
+  return {
+    name: (tgUser && tgUser.first_name) || "",
+    age: 0, adult: false, gender: "", showMe: "", school: "", year: "",
+    photo: null, bio: "", interests: [], ack: false,
+    username: (tgUser && tgUser.username) || "",
+  };
+}
+
+function stepError(step) {
+  switch (step) {
+    case "name": return draft.name.trim() ? "" : "Please enter your name.";
+    case "age":
+      if (!draft.age) return "Please choose your age.";
+      return draft.adult ? "" : "Please confirm you're 18 or older.";
+    case "gender": case "showMe": case "school": case "year":
+      return draft[step] ? "" : "Please choose one option.";
+    case "ack": return draft.ack ? "" : "Please confirm to continue.";
+    default: return "";
+  }
+}
+
+function stepIsEmpty(step) {
+  if (step === "photo") return !draft.photo;
+  if (step === "bio") return !draft.bio.trim();
+  if (step === "interests") return draft.interests.length === 0;
+  return false;
+}
+
+function updateNav() {
+  const step = STEPS[stepIndex];
+  const next = $("#wiz-next");
+  if (editing) {
+    next.textContent = "Save";
+    next.disabled = false;
+    return;
+  }
+  next.textContent = step === "ack" ? "Start matching"
+    : (OPTIONAL_STEPS[step] && stepIsEmpty(step)) ? "Skip for now" : "Continue";
+  next.disabled = !!stepError(step);
+}
+
+function renderWizard(direction) {
+  const current = STEPS[stepIndex];
+  document.querySelectorAll("#profile-form .step").forEach((s) => {
+    const name = s.dataset.step;
+    s.hidden = editing ? name === "ack" : name !== current;
+    s.classList.remove("enter-forward", "enter-back");
+  });
+  $("#onboarding").classList.toggle("editing", editing);
+  $("#form-cancel").hidden = !editing;
+  $("#form-error").textContent = "";
+
+  if (!editing) {
+    $("#wiz-progress").style.width = `${((stepIndex + 1) / STEPS.length) * 100}%`;
+    $("#wiz-count").textContent = `${stepIndex + 1}/${STEPS.length}`;
+    $("#wiz-back").style.visibility = stepIndex > 0 ? "visible" : "hidden";
+    const section = document.querySelector(`.step[data-step="${current}"]`);
+    if (direction) {
+      void section.offsetWidth; // restart the slide-in animation
+      section.classList.add(direction === "back" ? "enter-back" : "enter-forward");
+    }
+    if (current === "name") setTimeout(() => $("#f-name").focus(), 50);
+  }
+  $("#wizard-body").scrollTop = 0;
+  updateNav();
+}
+
+function renderOptions(field) {
+  const box = document.querySelector(`.options[data-field="${field}"]`);
+  box.innerHTML = CHOICES[field].map(([value, label]) => `
+    <button type="button" class="option${draft[field] === value ? " on" : ""}" data-value="${esc(value)}">
+      <span>${esc(label)}</span>
+      <svg class="icon"><use href="#i-check"/></svg>
+    </button>`).join("");
+}
+
+function renderInterestPicker() {
+  $("#interest-picker").innerHTML = INTERESTS.map((i) =>
+    `<button type="button" class="chip${draft.interests.includes(i) ? " on" : ""}" data-interest="${esc(i)}">${esc(i)}</button>`
+  ).join("");
+  $("#interest-count").textContent = `(${draft.interests.length}/${MAX_INTERESTS})`;
+}
+
+function renderBioCount() {
+  $("#bio-count").textContent = `${draft.bio.length}/200`;
+}
+
+function fillWizard() {
+  $("#f-name").value = draft.name;
+  $("#f-age").value = draft.age || "";
+  $("#f-adult").checked = draft.adult;
+  $("#f-bio").value = draft.bio;
+  $("#f-ack").checked = draft.ack;
+  Object.keys(CHOICES).forEach(renderOptions);
+  renderInterestPicker();
+  renderPhotoPicker();
+  renderBioCount();
+}
+
+function nextStep() {
+  clearTimeout(advanceTimer);
+  if (editing) return saveDraft();
+  const err = stepError(STEPS[stepIndex]);
+  if (err) {
+    $("#form-error").textContent = err;
+    haptic("rigid");
+    return;
+  }
+  if (stepIndex === STEPS.length - 1) return saveDraft();
+  stepIndex++;
+  haptic("light");
+  renderWizard("forward");
+}
+
+function prevStep() {
+  clearTimeout(advanceTimer);
+  if (editing || stepIndex === 0) return;
+  stepIndex--;
+  renderWizard("back");
+}
+
+function saveDraft() {
+  if (editing) {
+    const bad = STEPS.find((s) => s !== "ack" && stepError(s));
+    if (bad) {
+      $("#form-error").textContent = stepError(bad);
+      document.querySelector(`.step[data-step="${bad}"]`).scrollIntoView({ behavior: "smooth", block: "center" });
+      haptic("rigid");
+      return;
+    }
+  }
+
+  const profile = {
+    name: draft.name.trim(),
+    age: draft.age,
+    gender: draft.gender,
+    showMe: draft.showMe,
+    school: draft.school,
+    year: draft.year,
+    bio: draft.bio.trim(),
+    interests: draft.interests,
+    photo: draft.photo,
+    username: draft.username || "",
+  };
+
+  const previous = state.profile;
+  state.profile = profile;
+  if (!save()) {
+    state.profile = previous;
+    $("#form-error").textContent = "Your phone couldn't store this photo. Try a different one.";
+    return;
+  }
+  showApp();
+  if (!previous) switchTab("discover");
+}
+
+function setupWizard() {
+  $("#f-age").innerHTML = `<option value="">Choose your age</option>` +
+    Array.from({ length: MAX_AGE - MIN_AGE + 1 }, (_, i) => `<option>${MIN_AGE + i}</option>`).join("");
+
+  $("#f-name").addEventListener("input", (e) => { draft.name = e.target.value; updateNav(); });
+  $("#f-name").addEventListener("keydown", (e) => {
+    if (e.key === "Enter") { e.preventDefault(); nextStep(); }
+  });
+  $("#f-age").addEventListener("change", (e) => { draft.age = Number(e.target.value) || 0; updateNav(); });
+  $("#f-adult").addEventListener("change", (e) => { draft.adult = e.target.checked; updateNav(); });
+  $("#f-bio").addEventListener("input", (e) => { draft.bio = e.target.value; renderBioCount(); updateNav(); });
+  $("#f-ack").addEventListener("change", (e) => { draft.ack = e.target.checked; updateNav(); });
+
+  // Single-choice questions: tapping an answer moves on to the next screen.
+  document.querySelectorAll(".options").forEach((box) => {
+    box.addEventListener("click", (e) => {
+      const opt = e.target.closest("[data-value]");
+      if (!opt) return;
+      const field = box.dataset.field;
+      draft[field] = opt.dataset.value;
+      renderOptions(field);
+      updateNav();
+      haptic("select");
+      if (!editing) {
+        const from = stepIndex;
+        clearTimeout(advanceTimer);
+        advanceTimer = setTimeout(() => { if (stepIndex === from) nextStep(); }, 250);
+      }
+    });
+  });
+
+  $("#interest-picker").addEventListener("click", (e) => {
+    const chip = e.target.closest("[data-interest]");
+    if (!chip) return;
+    const name = chip.dataset.interest;
+    const i = draft.interests.indexOf(name);
+    if (i >= 0) draft.interests.splice(i, 1);
+    else if (draft.interests.length < MAX_INTERESTS) draft.interests.push(name);
+    else return haptic("rigid");
+    haptic("select");
+    renderInterestPicker();
+    updateNav();
+  });
+
+  $("#profile-form").addEventListener("submit", (e) => { e.preventDefault(); nextStep(); });
+  $("#wiz-next").addEventListener("click", nextStep);
+  $("#wiz-back").addEventListener("click", prevStep);
+  $("#form-cancel").addEventListener("click", showApp);
+}
+
+// ---------- Photo upload ----------
 
 // Shrinks the chosen image and re-encodes it as JPEG so it fits in browser storage.
 function readPhoto(file) {
@@ -489,12 +748,12 @@ function readPhoto(file) {
 
 function renderPhotoPicker() {
   const preview = $("#photo-preview");
-  preview.hidden = !pendingPhoto;
-  if (pendingPhoto) preview.src = pendingPhoto;
+  preview.hidden = !draft.photo;
+  if (draft.photo) preview.src = draft.photo;
   else preview.removeAttribute("src");
-  $("#photo-empty").hidden = !!pendingPhoto;
-  $("#photo-change").hidden = !pendingPhoto;
-  $("#photo-remove").hidden = !pendingPhoto;
+  $("#photo-empty").hidden = !!draft.photo;
+  $("#photo-change").hidden = !draft.photo;
+  $("#photo-remove").hidden = !draft.photo;
 }
 
 $("#photo-input").addEventListener("change", async (e) => {
@@ -506,124 +765,33 @@ $("#photo-input").addEventListener("change", async (e) => {
     return;
   }
   try {
-    pendingPhoto = await readPhoto(file);
+    draft.photo = await readPhoto(file);
     $("#form-error").textContent = "";
     haptic("light");
   } catch (err) {
     $("#form-error").textContent = "That photo couldn't be opened. Try a different one.";
   }
   renderPhotoPicker();
+  updateNav();
 });
 
 $("#photo-change").addEventListener("click", () => $("#photo-input").click());
 $("#photo-remove").addEventListener("click", () => {
-  pendingPhoto = null;
+  draft.photo = null;
   renderPhotoPicker();
+  updateNav();
 });
-
-// ---------- Sign-up form ----------
-
-let pickedInterests = new Set();
-
-function setupForm() {
-  const el = $("#profile-form").elements;
-  el.age.innerHTML = `<option value="">Choose…</option>` +
-    Array.from({ length: MAX_AGE - MIN_AGE + 1 }, (_, i) => `<option>${MIN_AGE + i}</option>`).join("");
-  el.school.innerHTML = `<option value="">Choose…</option>` +
-    SCHOOLS.map((s) => `<option>${esc(s)}</option>`).join("");
-  el.year.innerHTML = `<option value="">Choose…</option>` +
-    YEARS.map((y) => `<option>${esc(y)}</option>`).join("");
-}
-
-function renderInterestPicker() {
-  $("#interest-picker").innerHTML = INTERESTS.map((i) =>
-    `<button type="button" class="chip${pickedInterests.has(i) ? " on" : ""}" data-interest="${esc(i)}">${esc(i)}</button>`
-  ).join("");
-  $("#interest-count").textContent = `(${pickedInterests.size}/${MAX_INTERESTS})`;
-}
-
-$("#interest-picker").addEventListener("click", (e) => {
-  const chip = e.target.closest("[data-interest]");
-  if (!chip) return;
-  const name = chip.dataset.interest;
-  if (pickedInterests.has(name)) pickedInterests.delete(name);
-  else if (pickedInterests.size < MAX_INTERESTS) pickedInterests.add(name);
-  else return haptic("rigid");
-  haptic("light");
-  renderInterestPicker();
-});
-
-function fillForm() {
-  const el = $("#profile-form").elements;
-  const p = state.profile || {};
-  el.displayName.value = p.name || (tgUser && tgUser.first_name) || "";
-  el.age.value = p.age || "";
-  el.gender.value = p.gender || "";
-  el.showMe.value = p.showMe || "";
-  el.school.value = p.school || "";
-  el.year.value = p.year || "";
-  el.bio.value = p.bio || "";
-  el.adult.checked = el.ack.checked = !!state.profile;
-  pickedInterests = new Set(p.interests || []);
-  pendingPhoto = p.photo || null;
-  renderInterestPicker();
-  renderPhotoPicker();
-  $("#form-error").textContent = "";
-
-  const editing = !!state.profile;
-  $("#form-title").textContent = editing ? "Edit profile" : "Campus Match";
-  $("#form-subtitle").textContent = editing
-    ? "Update how other students see you."
-    : "Meet other students. Create your profile to start.";
-  $("#form-submit").textContent = editing ? "Save" : "Start matching";
-  $("#form-cancel").hidden = !editing;
-}
-
-$("#profile-form").addEventListener("submit", (e) => {
-  e.preventDefault();
-  const el = e.target.elements;
-  const error = (msg) => { $("#form-error").textContent = msg; haptic("rigid"); };
-
-  const profile = {
-    name: el.displayName.value.trim(),
-    age: Number(el.age.value),
-    gender: el.gender.value,
-    showMe: el.showMe.value,
-    school: el.school.value,
-    year: el.year.value,
-    bio: el.bio.value.trim(),
-    interests: [...pickedInterests],
-    photo: pendingPhoto,
-    // Keep a username set in Settings; on first sign-up, take it from Telegram.
-    username: state.profile ? state.profile.username : ((tgUser && tgUser.username) || ""),
-  };
-
-  if (!profile.name) return error("Please enter your name.");
-  if (!profile.age || !profile.gender || !profile.showMe || !profile.school || !profile.year) {
-    return error("Please fill in age, gender, who to show, school and year.");
-  }
-  if (profile.age < MIN_AGE || !el.adult.checked) return error("Campus Match is for students 18 and older.");
-  if (!el.ack.checked) return error("Please confirm you understand this is a prototype.");
-
-  const previous = state.profile;
-  state.profile = profile;
-  if (!save()) {
-    state.profile = previous;
-    return error("Your phone couldn't store this photo. Try a different one.");
-  }
-  showApp();
-  if (!previous) switchTab("discover");
-});
-
-$("#form-cancel").addEventListener("click", showApp);
 
 // ---------- Screens & tabs ----------
 
 function showOnboarding() {
-  fillForm();
+  editing = !!state.profile;
+  draft = newDraft();
+  stepIndex = 0;
+  fillWizard();
   $("#app").hidden = true;
   $("#onboarding").hidden = false;
-  window.scrollTo(0, 0);
+  renderWizard();
 }
 
 function showApp() {
@@ -642,7 +810,7 @@ function switchTab(name) {
     else b.removeAttribute("aria-current");
   });
   $("main").scrollTop = 0;
-  haptic("light");
+  haptic("select");
 }
 
 document.querySelector(".tabs").addEventListener("click", (e) => {
@@ -659,7 +827,7 @@ $("#match-chat").addEventListener("click", () => {
 });
 $("#profile-modal-close").addEventListener("click", () => { $("#profile-modal").hidden = true; });
 
-setupForm();
+setupWizard();
 setupSettings();
 applyAppearance();
 if (state.profile) showApp();
