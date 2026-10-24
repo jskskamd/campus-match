@@ -370,23 +370,95 @@ $("#match-list").addEventListener("click", (e) => {
 
 // ---------- My profile ----------
 
+const BOT_LINK = "https://t.me/UVSABot";
+
+// Each item adds to the profile strength meter; `fix` opens the place to complete it.
+const STRENGTH_ITEMS = [
+  { points: 30, label: "Add a photo", done: (p) => !!p.photo, fix: () => showOnboarding("photo") },
+  { points: 20, label: "Write a short bio", done: (p) => !!p.bio, fix: () => showOnboarding("bio") },
+  { points: 20, label: "Pick at least 3 interests", done: (p) => (p.interests || []).length >= 3, fix: () => showOnboarding("interests") },
+  { points: 20, label: "Add your Telegram username", done: (p) => !!p.username && state.settings.shareTelegram, fix: () => switchTab("settings") },
+];
+
 function renderMyProfile() {
+  const p = state.profile;
+
+  $("#hero-avatar").innerHTML = avatarHTML(me(), "xl");
+  $("#hero-name").textContent = `${p.name}, ${p.age}`;
+  $("#hero-meta").textContent = `${p.school || "No school chosen"} · ${p.year}`;
+
+  const swipes = Object.values(state.swipes);
+  $("#stat-liked").textContent = swipes.filter((d) => d === "like").length;
+  $("#stat-matches").textContent = state.matches.length;
+  $("#stat-seen").textContent = swipes.length;
+
+  // The 10 points left over are for the basics everyone fills in at sign-up.
+  const score = 10 + STRENGTH_ITEMS.reduce((sum, item) => sum + (item.done(p) ? item.points : 0), 0);
+  $("#strength-fill").style.width = `${score}%`;
+  $("#strength-pct").textContent = `${score}%`;
+  $("#strength-label").textContent = score === 100 ? "Your profile is complete. Nice!"
+    : score >= 70 ? "Almost there. A few more details help people say yes."
+    : "Complete profiles get many more matches.";
+  const todo = STRENGTH_ITEMS.filter((item) => !item.done(p));
+  $("#strength-todo").innerHTML = todo.map((item) => `
+    <li><button data-fix="${STRENGTH_ITEMS.indexOf(item)}">
+      <span>${esc(item.label)}</span><b>+${item.points}%</b>
+    </button></li>`).join("");
+
   const holder = $("#my-card");
   holder.innerHTML = "";
   holder.appendChild(makeCard(me()));
 
   const status = $("#contact-status");
-  const { username } = state.profile;
   if (!state.settings.shareTelegram) {
     status.textContent = "Matches can't message you. You can turn this on in Settings.";
-  } else if (username) {
-    status.textContent = `Matches can message you at @${username}`;
+  } else if (p.username) {
+    status.textContent = `Matches can message you at @${p.username}`;
   } else {
     status.textContent = "Add your Telegram username in Settings so matches can message you.";
   }
 }
 
-$("#btn-edit").addEventListener("click", showOnboarding);
+$("#strength-todo").addEventListener("click", (e) => {
+  const btn = e.target.closest("[data-fix]");
+  if (btn) STRENGTH_ITEMS[Number(btn.dataset.fix)].fix();
+});
+$("#btn-edit").addEventListener("click", () => showOnboarding());
+$("#hero-photo").addEventListener("click", () => showOnboarding("photo"));
+
+$("#btn-invite").addEventListener("click", () => {
+  const text = "Join me on Campus Match, a dating app for NU students!";
+  const url = `https://t.me/share/url?url=${encodeURIComponent(BOT_LINK)}&text=${encodeURIComponent(text)}`;
+  haptic("light");
+  if (tg && tg.openTelegramLink) tg.openTelegramLink(url);
+  else window.open(url, "_blank");
+});
+
+// Two-tap confirm for destructive buttons: the first tap asks, the second within 3s acts.
+function confirmTwice(btn, label, confirmLabel, action) {
+  let timer = null;
+  btn.addEventListener("click", () => {
+    if (!timer) {
+      btn.textContent = confirmLabel;
+      haptic("rigid");
+      timer = setTimeout(() => { btn.textContent = label; timer = null; }, 3000);
+      return;
+    }
+    clearTimeout(timer);
+    timer = null;
+    btn.textContent = label;
+    action();
+  });
+}
+
+function eraseEverything() {
+  state = freshState();
+  save();
+  applyAppearance();
+  showOnboarding();
+}
+
+confirmTwice($("#btn-delete"), "Delete my account", "Tap again to delete your account", eraseEverything);
 
 // ---------- Settings ----------
 
@@ -496,22 +568,7 @@ function setupSettings() {
   });
 }
 
-let resetArmed = null;
-$("#btn-reset").addEventListener("click", (e) => {
-  const btn = e.currentTarget;
-  if (!resetArmed) {
-    btn.textContent = "Tap again to erase everything";
-    resetArmed = setTimeout(() => { btn.textContent = "Reset prototype data"; resetArmed = null; }, 3000);
-    return;
-  }
-  clearTimeout(resetArmed);
-  resetArmed = null;
-  btn.textContent = "Reset prototype data";
-  state = freshState();
-  save();
-  applyAppearance();
-  showOnboarding();
-});
+confirmTwice($("#btn-reset"), "Reset prototype data", "Tap again to erase everything", eraseEverything);
 
 // ---------- Sign-up wizard ----------
 
@@ -800,7 +857,8 @@ $("#photo-remove").addEventListener("click", () => {
 
 // ---------- Screens & tabs ----------
 
-function showOnboarding() {
+// `focusStep` (edit mode only) scrolls straight to one question, e.g. "photo".
+function showOnboarding(focusStep) {
   editing = !!state.profile;
   draft = newDraft();
   stepIndex = 0;
@@ -808,6 +866,14 @@ function showOnboarding() {
   $("#app").hidden = true;
   $("#onboarding").hidden = false;
   renderWizard();
+  if (editing && focusStep) {
+    const section = document.querySelector(`.step[data-step="${focusStep}"]`);
+    if (section) {
+      section.scrollIntoView({ block: "center" });
+      section.classList.add("highlight");
+      setTimeout(() => section.classList.remove("highlight"), 1500);
+    }
+  }
 }
 
 function showApp() {

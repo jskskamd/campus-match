@@ -6,7 +6,7 @@
   <title>Campus Match</title>
   <script src="https://telegram.org/js/telegram-web-app.js"></script>
   <!-- Bump ?v= on every release so Telegram doesn't keep serving old files. -->
-  <link rel="stylesheet" href="style.css?v=7">
+  <link rel="stylesheet" href="style.css?v=8">
 </head>
 <body>
 
@@ -145,10 +145,49 @@
       </div>
 
       <div class="panel" data-panel="profile" hidden>
-        <h2>My profile</h2>
-        <div class="my-card" id="my-card"></div>
-        <p class="contact-status" id="contact-status"></p>
-        <button class="primary" id="btn-edit">Edit profile and photo</button>
+        <section class="profile-hero">
+          <button class="hero-photo" id="hero-photo" aria-label="Change photo">
+            <span id="hero-avatar"></span>
+            <span class="hero-camera"><svg class="icon"><use href="#i-camera"/></svg></span>
+          </button>
+          <h2 id="hero-name"></h2>
+          <p class="hint" id="hero-meta"></p>
+          <button class="pill-btn" id="btn-edit">Edit profile</button>
+        </section>
+
+        <section class="stats">
+          <div><b id="stat-liked">0</b><span>Liked</span></div>
+          <div><b id="stat-matches">0</b><span>Matches</span></div>
+          <div><b id="stat-seen">0</b><span>Seen</span></div>
+        </section>
+
+        <section class="group">
+          <h4>Profile strength</h4>
+          <div class="strength-row">
+            <div class="meter"><div class="meter-fill" id="strength-fill"></div></div>
+            <b id="strength-pct"></b>
+          </div>
+          <p class="hint small" id="strength-label"></p>
+          <ul class="todo" id="strength-todo"></ul>
+        </section>
+
+        <section class="group">
+          <h4>How others see you</h4>
+          <div class="my-card" id="my-card"></div>
+        </section>
+
+        <section class="group">
+          <h4>Contact</h4>
+          <p class="contact-status" id="contact-status"></p>
+        </section>
+
+        <section class="group invite">
+          <h4>Invite friends</h4>
+          <p class="hint small">Campus Match gets better with every student who joins.</p>
+          <button class="primary" id="btn-invite">Share Campus Match</button>
+        </section>
+
+        <button class="ghost danger" id="btn-delete">Delete my account</button>
       </div>
 
       <div class="panel" data-panel="settings" hidden>
@@ -254,7 +293,7 @@
     </div>
   </div>
 
-  <script src="profiles.js?v=7"></script>
-  <script src="app.js?v=7"></script>
+  <script src="profiles.js?v=8"></script>
+  <script src="app.js?v=8"></script>
 </body>
 </html>

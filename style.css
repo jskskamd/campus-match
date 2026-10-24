@@ -392,17 +392,77 @@ main { flex: 1; overflow-y: auto; padding: 8px 16px 16px; }
 
 /* ---------- My profile ---------- */
 
-.my-card { position: relative; height: 440px; margin-bottom: 8px; }
+.profile-hero { display: flex; flex-direction: column; align-items: center; text-align: center; padding: 8px 0 18px; }
+.profile-hero h2 { margin: 12px 0 2px; font-size: 1.5em; }
+.profile-hero .hint { margin: 0 0 12px; }
+.hero-photo { position: relative; border: none; background: none; padding: 0; border-radius: 50%; }
+.hero-camera {
+  position: absolute;
+  right: 2px;
+  bottom: 2px;
+  width: 34px;
+  height: 34px;
+  display: grid;
+  place-items: center;
+  border-radius: 50%;
+  background: var(--accent);
+  color: var(--accent-text);
+  border: 3px solid var(--bg);
+}
+.hero-camera .icon { width: 17px; height: 17px; }
+.avatar.xl { width: 120px; height: 120px; font-size: 50px; border: 4px solid var(--surface); box-shadow: var(--shadow); }
+.pill-btn {
+  border: none;
+  border-radius: 999px;
+  padding: 8px 18px;
+  background: var(--accent-soft);
+  color: var(--accent);
+  font-weight: 600;
+}
+
+.stats {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  background: var(--surface);
+  border-radius: 20px;
+  box-shadow: var(--shadow);
+  padding: 14px 6px;
+  margin-bottom: 14px;
+}
+.stats div { display: flex; flex-direction: column; align-items: center; gap: 2px; }
+.stats div + div { border-left: 1px solid var(--line); }
+.stats b { font-size: 1.5em; color: var(--accent); }
+.stats span { font-size: 0.82em; color: var(--hint); }
+
+.strength-row { display: flex; align-items: center; gap: 12px; margin-top: 8px; }
+.meter { flex: 1; height: 10px; border-radius: 999px; background: var(--chip); overflow: hidden; }
+.meter-fill { height: 100%; border-radius: 999px; background: var(--accent); transition: width 0.5s ease; }
+#strength-label { margin: 8px 0 6px; }
+.todo { list-style: none; margin: 0 0 6px; padding: 0; }
+.todo button {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  width: 100%;
+  margin-top: 6px;
+  padding: 11px 12px;
+  border: 1px dashed var(--accent);
+  border-radius: 12px;
+  background: var(--accent-soft);
+  text-align: left;
+  font-size: 0.93em;
+}
+.todo b { color: var(--accent); font-size: 0.9em; }
+
+.my-card { position: relative; height: 440px; margin: 8px 0; }
+.contact-status { margin: 4px 0 8px; font-size: 0.93em; }
+.invite .hint { margin: 4px 0 4px; }
+.invite .primary { margin-bottom: 8px; }
+#btn-delete { margin-bottom: 12px; }
+.step.highlight { animation: highlight 1.5s ease; }
+@keyframes highlight { 0%, 40% { box-shadow: 0 0 0 3px var(--accent); } }
 .my-card .card, #profile-modal-card .card { position: absolute; transform: none; }
 #profile-modal-card { position: relative; height: 400px; }
-.contact-status {
-  background: var(--surface);
-  border-radius: 14px;
-  padding: 10px 12px;
-  margin: 14px 0 0;
-  font-size: 0.9em;
-  box-shadow: var(--shadow);
-}
 
 /* ---------- Settings ---------- */
 
